@@ -8,6 +8,7 @@ Before import things of trash you must import `build/envsetup.sh` of android com
 then, import the `trash/bucket.sh`. Things in the trash should be seen in your bash.
 
     $. ./build/envsetup.sh`
+    $lunch <TARGET>
     $. ./trash/bucket.sh
 
 ## things
