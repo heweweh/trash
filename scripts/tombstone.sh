@@ -15,6 +15,7 @@ function tombstone
 
         INNER_SYMBOLS_PATH=$(get_abs_build_var TARGET_OUT_UNSTRIPPED)
         echo "warning: using local symbol files(which is $INNER_SYMBOLS_PATH)"
+
         if [ ! -d $INNER_SYMBOLS_PATH ] ; then
             echo "error: need a valid path of symbol files"
             return 1
@@ -24,7 +25,6 @@ function tombstone
     if [ -z $INNER_LIMIT ] ; then
         INNER_LIMIT=10
     fi
-    echo "limit:"$INNER_LIMIT
 
     INNER_SYMBOLS_PATH=$(dirname $INNER_SYMBOLS_PATH/.)
 
