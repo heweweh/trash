@@ -11,7 +11,6 @@ function tombstone
         return 1
     fi
 
-
     if [ ! -d "$INNER_SYMBOLS_PATH" ] ; then
 
         INNER_SYMBOLS_PATH=$(get_abs_build_var TARGET_OUT_UNSTRIPPED)
@@ -64,3 +63,85 @@ function tombstone
     rm $TMPAWK
     rm $TMPSH
 }
+
+function tombstone_symbol_sync
+{
+    local REMOTE_RELEASE_URL='ftp://172.26.181.33/Release/18JTACS/APL/18cyavn_release/'
+    local REMOTE_SYMBOL_FILE='_ENGALPS/symbols.tar.gz'
+
+    if [ -z "$1" ] ;  then
+        echo "error: need a tombstone file."
+        return 1
+    fi
+
+    if [ ! -d "$2" ] ; then
+        echo "error: need a path to extract symbol files."
+        return 1
+    fi
+
+    local SUB_PATH=$(grep -e "Build fingerprint" $1 | awk -F /  '{split($3,A,":"); printf "%s_%s",$6,A[2];}')
+    if [ -z "$SUB_PATH" ] ; then
+        echo "error: there is no build fingerprint in this file."
+        return 1
+    fi
+
+    local TOMBSTONE_SYMBOL_PATH=$(dirname $2/.)/$SUB_PATH
+
+    if [ -d "$TOMBSTONE_SYMBOL_PATH" ] ; then
+        read -p "confirm: the path that extracting to is exsits. overwrite it?[y/N]:" -n 1 CONFIRM
+        case $CONFIRM in
+            Y|y);;
+            *)  echo "skipped."
+                return 0
+                ;;
+        esac
+    else
+        mkdir $TOMBSTONE_SYMBOL_PATH
+    fi
+
+    read -p "Please enter your USERNAME:" FTP_USER
+    if [ -z "$FTP_USER" ] ;  then
+        echo "error: need a tombstone file."
+        return 1
+    fi
+
+    read -s -p "Please enter your PASSWORD:" FTP_PASSWD
+    if [ -z "$FTP_PASSWD" ] ;  then
+        echo "error: need a password."
+        return 1
+    fi
+
+    if [ "$DEBUG" == "true" ] ; then
+        echo "DEBUG:"
+        echo "extract to path:"$TOMBSTONE_SYMBOL_PATH
+        echo "user:"$FTP_USER
+        echo "passwd:"$FTP_PASSWD
+    fi
+
+    local TMP_FILE=$(mktemp "XXXXXXXX.tar.gz")
+    wget \
+        --ftp-user=$FTP_USER \
+        --ftp-password=$FTP_PASSWD \
+        --output-document=$TMP_FILE \
+        ${REMOTE_RELEASE_URL}${SUB_PATH}${REMOTE_SYMBOL_FILE}
+
+    if [ "0" != "$?" ] ; then
+        echo "error: error occurs while downloading symbol file."
+        return 1
+    fi
+
+    tar -xzf $TMP_FILE -C $TOMBSTONE_SYMBOL_PATH
+    if [ "0" != "$?" ] ; then
+        rm $TMP_FILE
+        echo "error: error occurs while downloading symbol file."
+        return 1
+    fi
+
+    rm $TMP_FILE
+
+    echo "Analizing file (which is $1), "
+    echo "with symbol files in $TOMBSTONE_SYMBOL_PATH"
+    tombstone $1 $TOMBSTONE_SYMBOL_PATH
+}
+
+
