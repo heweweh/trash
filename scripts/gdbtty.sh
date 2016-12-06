@@ -65,7 +65,7 @@ function gdbtty
         # echo "   gdb binary            :$EXEC_EABI_GDB"
 
         if [ -x "$EXEC_EABI_GDB" ] ; then
-            $EXEC_EABI_GDB -q -b $BAUD -x "$OUT_ROOT/$GDB_CLIENT_CMDS" "$OUT_EXE_SYMBOLS/$EXE"
+            $EXEC_EABI_GDB -b $BAUD -x "$OUT_ROOT/$GDB_CLIENT_CMDS" "$OUT_EXE_SYMBOLS/$EXE"
         fi
     else
         echo "Unable to determine build system output dir."
