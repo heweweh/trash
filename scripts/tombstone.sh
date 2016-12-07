@@ -31,12 +31,12 @@ function tombstone
     local TMPAWK=$(mktemp)
     local TMPSH=$(mktemp)
 
-    local TMPSCPT=''
+    TMPSCPT=''
     TMPSCPT+='BEGIN{cnt=0;}'
     TMPSCPT+='{'
     TMPSCPT+='    printf "echo \"%s\"\n", $0;'
     TMPSCPT+='    if ($2 ~ /pc/) {'
-    TMPSCPT+='        printf "TMP_SO_NAME=$(locate -l 1 -r %s.*%s$)\n", path, $4;'
+    TMPSCPT+='        printf "TMP_SO_NAME=$(grep %s$ $TMP_LST | head -n 1)\n", $4;'
     TMPSCPT+='        print  "if [ -r \"$TMP_SO_NAME\" ] ; then\n";'
     TMPSCPT+='        printf "    $ADDR2LINE -aCfe \"$TMP_SO_NAME\" %s\n", $3;'
     TMPSCPT+='        printf "    $NM -l -C -n -S \"$TMP_SO_NAME\" > tombstone/nm%s.data\n", $1;'
@@ -56,8 +56,9 @@ function tombstone
     TMPSCPT+='NM=$(find $ARM_EABI_TOOLCHAIN -name "*nm" -executable |head -n 1)\n'
     TMPSCPT+='OBJDUMP=$(find $ARM_EABI_TOOLCHAIN -name "*objdump" -executable |head -n 1)\n'
     TMPSCPT+='if [ -x "$ADDR2LINE" -a -x "$NM" -a -x "$OBJDUMP" ] ; then\n'
-    TMPSCPT+=$(awk -f $TMPAWK -v path=$INNER_SYMBOLS_PATH -v limit=$INNER_LIMIT $INNER_C_R_FILE | cat)
-    TMPSCPT+='\necho ""\n'
+    TMPSCPT+='TMP_LST=$(mktemp) && find '$INNER_SYMBOLS_PATH' > $TMP_LST\n'
+    TMPSCPT+=$(awk -f $TMPAWK -v limit=$INNER_LIMIT $INNER_C_R_FILE)
+    TMPSCPT+='rm $TMP_LST\n'
     TMPSCPT+='fi\n'
     echo -e "$TMPSCPT" 1> $TMPSH
 
@@ -78,8 +79,8 @@ function tombstone
     fi
     . $TMPSH
 
-    rm $TMPAWK
     rm $TMPSH
+    rm $TMPAWK
 }
 
 function tombstone_symbol_sync
