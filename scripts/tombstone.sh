@@ -86,58 +86,72 @@ function tombstone_symbol_sync
     fi
 
     local TOMBSTONE_SYMBOL_PATH=$(dirname $2/.)/$SUB_PATH
+    local NEED_REEXTRACT=1
 
     if [ -d "$TOMBSTONE_SYMBOL_PATH" ] ; then
         read -p "confirm: the path that extracting to is exsits. overwrite it?[y/N]:" -n 1 CONFIRM
+        echo ""
         case $CONFIRM in
-            Y|y);;
-            *)  echo "skipped."
-                return 0
+            Y|y)NEED_REEXTRACT=1
+                ;;
+            *)  NEED_REEXTRACT=0
+                echo "dowloading was skipped."
                 ;;
         esac
     else
+        NEED_REEXTRACT=1
         mkdir $TOMBSTONE_SYMBOL_PATH
     fi
 
-    read -p "Please enter your USERNAME:" FTP_USER
-    if [ -z "$FTP_USER" ] ;  then
-        echo "error: need a tombstone file."
-        return 1
-    fi
+    if [ "1" == "$NEED_REEXTRACT" ] ; then
 
-    read -s -p "Please enter your PASSWORD:" FTP_PASSWD
-    if [ -z "$FTP_PASSWD" ] ;  then
-        echo "error: need a password."
-        return 1
-    fi
+        echo -n "Please enter your storm username:"
+        read FTP_USER
+        if [ -z "$FTP_USER" ] ;  then
+            echo "error: need a tombstone file."
+            return 1
+        fi
 
-    if [ "$DEBUG" == "true" ] ; then
-        echo "DEBUG:"
-        echo "extract to path:"$TOMBSTONE_SYMBOL_PATH
-        echo "user:"$FTP_USER
-        echo "passwd:"$FTP_PASSWD
-    fi
+        echo -n "Please enter your password:"
+        read -s  FTP_PASSWD
+        if [ -z "$FTP_PASSWD" ] ;  then
+            echo "error: need a password."
+            return 1
+        fi
+        echo ""
 
-    local TMP_FILE=$(mktemp "XXXXXXXX.tar.gz")
-    wget \
-        --ftp-user=$FTP_USER \
-        --ftp-password=$FTP_PASSWD \
-        --output-document=$TMP_FILE \
-        ${REMOTE_RELEASE_URL}${SUB_PATH}${REMOTE_SYMBOL_FILE}
+        if [ "$DEBUG" == "true" ] ; then
+            echo "DEBUG:"
+            echo "extract to path:"$TOMBSTONE_SYMBOL_PATH
+            echo "user:"$FTP_USER
+            echo "passwd:"$FTP_PASSWD
+        fi
 
-    if [ "0" != "$?" ] ; then
-        echo "error: error occurs while downloading symbol file."
-        return 1
-    fi
+        local TMP_FILE=$(mktemp "XXXXXXXX.tar.gz")
+        wget \
+            --ftp-user=$FTP_USER \
+            --ftp-password=$FTP_PASSWD \
+            --output-document=$TMP_FILE \
+            ${REMOTE_RELEASE_URL}${SUB_PATH}${REMOTE_SYMBOL_FILE}
 
-    tar -xzf $TMP_FILE -C $TOMBSTONE_SYMBOL_PATH
-    if [ "0" != "$?" ] ; then
+        if [ "0" != "$?" ] ; then
+            rm $TMP_FILE
+            echo "error: error occurs while downloading symbol file."
+            return 1
+        fi
+
+        echo "extracting... please wait for a while."
+        tar -xzf $TMP_FILE -C $TOMBSTONE_SYMBOL_PATH
+        if [ "0" != "$?" ] ; then
+            rm $TMP_FILE
+            echo "error: error occurs while downloading symbol file."
+            return 1
+        fi
+        echo "done."
+
         rm $TMP_FILE
-        echo "error: error occurs while downloading symbol file."
-        return 1
-    fi
 
-    rm $TMP_FILE
+    fi
 
     echo "Analizing file (which is $1), "
     echo "with symbol files in $TOMBSTONE_SYMBOL_PATH"
