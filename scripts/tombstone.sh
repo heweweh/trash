@@ -31,19 +31,22 @@ function tombstone
     local TMPAWK=$(mktemp)
     local TMPSH=$(mktemp)
 
-    local TMSCPT=''
-    TMSCPT+='BEGIN{cnt=0;}'
-    TMSCPT+='{'
-    TMSCPT+='    printf "echo \"%s\"\n", $0;'
-    TMSCPT+='    if ($2 ~ /pc/) {'
-    TMSCPT+='        addr = $3;'
-    TMSCPT+='        file = $4; '
-    TMSCPT+='        printf "addr2line -a %s -e \"$(locate -l 1 -r %s.*%s$)\"\n", addr, path, file;'
-    TMSCPT+='        cnt++;'
-    TMSCPT+='    }'
-    TMSCPT+='    if (cnt >= limit) exit;'
-    TMSCPT+='}'
-    echo $TMSCPT 1> $TMPAWK
+    local TMPSCPT=''
+    TMPSCPT+='BEGIN{cnt=0;}'
+    TMPSCPT+='{'
+    TMPSCPT+='    printf "echo \"%s\"\n", $0;'
+    TMPSCPT+='    if ($2 ~ /pc/) {'
+    TMPSCPT+='        addr = $3;'
+    TMPSCPT+='        file = $4; '
+    TMPSCPT+='        printf "addr2line -a %s -e \"$(locate -l 1 -r %s.*%s$)\"\n", addr, path, file;'
+    TMPSCPT+='        cnt++;'
+    TMPSCPT+='    }'
+    TMPSCPT+='    else { '
+    TMPSCPT+='        if (cnt > 0) exit;'
+    TMPSCPT+='    }'
+    TMPSCPT+='    if (cnt >= limit) exit;'
+    TMPSCPT+='}'
+    echo $TMPSCPT 1> $TMPAWK
 
     awk -f $TMPAWK -v path=$INNER_SYMBOLS_PATH -v limit=$INNER_LIMIT $INNER_C_R_FILE 1> $TMPSH
 
