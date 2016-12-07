@@ -23,7 +23,7 @@ function tombstone
     fi
 
     if [ -z "$INNER_LIMIT" ] ; then
-        INNER_LIMIT=10
+        INNER_LIMIT=32
     fi
 
     INNER_SYMBOLS_PATH=$(dirname $INNER_SYMBOLS_PATH/.)
