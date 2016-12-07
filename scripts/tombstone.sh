@@ -36,9 +36,12 @@ function tombstone
     TMPSCPT+='{'
     TMPSCPT+='    printf "echo \"%s\"\n", $0;'
     TMPSCPT+='    if ($2 ~ /pc/) {'
-    TMPSCPT+='        addr = $3;'
-    TMPSCPT+='        file = $4; '
-    TMPSCPT+='        printf "addr2line -a %s -e \"$(locate -l 1 -r %s.*%s$)\"\n", addr, path, file;'
+    TMPSCPT+='        printf "TMP_SO_NAME=$(locate -l 1 -r %s.*%s$)\n", path, $4;'
+    TMPSCPT+='        print  "if [ -r \"$TMP_SO_NAME\" ] ; then\n";'
+    TMPSCPT+='        printf "    $ADDR2LINE -aCfe \"$TMP_SO_NAME\" %s\n", $3;'
+    TMPSCPT+='        printf "    $NM -l -C -n -S \"$TMP_SO_NAME\" > tombstone/nm%s.data\n", $1;'
+    TMPSCPT+='        printf "    $OBJDUMP -C -d \"$TMP_SO_NAME\" > tombstone/od%s.s\n", $1;'
+    TMPSCPT+='        print  "fi\n";'
     TMPSCPT+='        cnt++;'
     TMPSCPT+='    }'
     TMPSCPT+='    else { '
@@ -46,9 +49,17 @@ function tombstone
     TMPSCPT+='    }'
     TMPSCPT+='    if (cnt >= limit) exit;'
     TMPSCPT+='}'
-    echo $TMPSCPT 1> $TMPAWK
+    echo "$TMPSCPT" 1> $TMPAWK
 
-    awk -f $TMPAWK -v path=$INNER_SYMBOLS_PATH -v limit=$INNER_LIMIT $INNER_C_R_FILE 1> $TMPSH
+    TMPSCPT=''
+    TMPSCPT+='ADDR2LINE=$(find $ARM_EABI_TOOLCHAIN -name "*addr2line" -executable |head -n 1)\n'
+    TMPSCPT+='NM=$(find $ARM_EABI_TOOLCHAIN -name "*nm" -executable |head -n 1)\n'
+    TMPSCPT+='OBJDUMP=$(find $ARM_EABI_TOOLCHAIN -name "*objdump" -executable |head -n 1)\n'
+    TMPSCPT+='if [ -x "$ADDR2LINE" -a -x "$NM" -a -x "$OBJDUMP" ] ; then\n'
+    TMPSCPT+=$(awk -f $TMPAWK -v path=$INNER_SYMBOLS_PATH -v limit=$INNER_LIMIT $INNER_C_R_FILE | cat)
+    TMPSCPT+='\necho ""\n'
+    TMPSCPT+='fi\n'
+    echo -e "$TMPSCPT" 1> $TMPSH
 
     if [ "$DEBUG" == "true"  ] ; then
         echo "=== DEBUG INFORMATION ==="
@@ -61,6 +72,10 @@ function tombstone
         echo "=== ==="
     fi
 
+    cat $TMPSH > 1.txt
+    if [ ! -d "tombstone" ] ; then
+        mkdir tombstone
+    fi
     . $TMPSH
 
     rm $TMPAWK
@@ -93,7 +108,7 @@ function tombstone_symbol_sync
 
     if [ -d "$TOMBSTONE_SYMBOL_PATH" ] ; then
         read -p "confirm: the path that extracting to is exsits. overwrite it?[y/N]:" -n 1 CONFIRM
-        echo ""
+        echo -e "\n"
         case $CONFIRM in
             Y|y)NEED_REEXTRACT=1
                 ;;
@@ -108,20 +123,19 @@ function tombstone_symbol_sync
 
     if [ "1" == "$NEED_REEXTRACT" ] ; then
 
-        echo -n "Please enter your storm username:"
-        read FTP_USER
+        read -p "Please enter your storm username:" FTP_USER
         if [ -z "$FTP_USER" ] ;  then
             echo "error: need a tombstone file."
             return 1
         fi
 
-        echo -n "Please enter your password:"
-        read -s  FTP_PASSWD
+        read -s -p "Please enter your password:" FTP_PASSWD
+        echo -e "\n"
         if [ -z "$FTP_PASSWD" ] ;  then
             echo "error: need a password."
             return 1
         fi
-        echo ""
+        echo -e "\n"
 
         if [ "$DEBUG" == "true" ] ; then
             echo "DEBUG:"
